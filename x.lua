@@ -2,6 +2,7 @@
 -- ║      Auto Lasso v7 × Avantrix GUI                   ║
 -- ║  GUI: Avantrix style (dark green, tabs, sidebar)     ║
 -- ║  Logic: Auto Lasso, Fruit, Food, Find Pets, TP Rarity║
+-- ║  FIX: Boss detection player count + minigame check   ║
 -- ╚══════════════════════════════════════════════════════╝
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -56,7 +57,6 @@ local COMPLETION_TARGET = 100
 -- ═══════════════════════════════════════════
 local Remotes              = ReplicatedStorage:WaitForChild("Remotes")
 local updateProgressRemote = Remotes:WaitForChild("UpdateProgress")
-
 
 local FoodConfig = nil
 task.spawn(function()
@@ -115,7 +115,7 @@ local fruitStatusLabel, fruitDetectLabel, foodStatusLabel
 local teleportRarityStatus
 
 -- ═══════════════════════════════════════════
--- NOTIFICATION (Avantrix style — StarterGui)
+-- NOTIFICATION
 -- ═══════════════════════════════════════════
 local function Notify(title, msg, dur)
     pcall(function()
@@ -449,11 +449,9 @@ end
 -- LASSO TAB
 -- ══════════════════════════
 SecLabel(LassoTab, "⚡ AUTO LASSO", Color3.fromRGB(100, 255, 150), 1)
-
 local toggleBtn = MakeBtn(LassoTab, "▶ Enable Auto Lasso", Color3.fromRGB(255, 60, 60), 2)
-
 local lassoInfoLbl = InfoLbl(LassoTab,
-    "⚡ Instant safe lock → fast complete\n👑 Boss: spam max speed",
+    "⚡ Instant safe lock → fast complete\n👑 Boss: spam max speed + deteksi player",
     3, true)
 lassoInfoLbl.Size = UDim2.new(1, 0, 0, isMobile and 36 or 44)
 
@@ -462,15 +460,12 @@ lassoInfoLbl.Size = UDim2.new(1, 0, 0, isMobile and 36 or 44)
 -- ══════════════════════════
 SecLabel(PetsTab, "🔍 FIND BEST PETS", Color3.fromRGB(100, 200, 255), 1)
 local findBestPetsBtn = MakeBtn(PetsTab, "🔍 Find Best Pet (Strength)", Color3.fromRGB(100, 150, 255), 2)
-
 SecLabel(PetsTab, "📡 TELEPORT BY RARITY", Color3.fromRGB(200, 150, 255), 3)
 
--- Rarity dropdown toggle
 local dropdownToggleBtn = MakeBtn(PetsTab, "▼  Pilih Rarity (0 dipilih)", Color3.fromRGB(60, 80, 120), 4, isMobile and 26 or 30)
 dropdownToggleBtn.TextSize = isMobile and 9 or 11
 
 local teleportRarityBtn = MakeBtn(PetsTab, "📡 Teleport ke Rarity", Color3.fromRGB(0, 170, 120), 5, isMobile and 28 or 32)
-
 teleportRarityStatus = InfoLbl(PetsTab, "Pilih rarity lalu tekan teleport", 6)
 
 -- Dropdown overlay
@@ -595,12 +590,10 @@ end)
 -- ══════════════════════════
 SecLabel(FruitTab, "🍎 AUTO COLLECT FRUIT", Color3.fromRGB(255, 200, 50), 1)
 local toggleFruitBtn = MakeBtn(FruitTab, "▶ Enable Auto Collect Fruit", Color3.fromRGB(255, 140, 0), 2)
-
 local fruitInfo = InfoLbl(FruitTab,
     "Deteksi realtime: CosmicFruit, BloodmoonGrape\nOtomatis teleport & collect saat ditemukan",
     3, true)
 fruitInfo.Size = UDim2.new(1, 0, 0, isMobile and 36 or 44)
-
 local fruitDetectDisplay = InfoLbl(FruitTab, "🔴 No fruit in area", 4)
 
 -- ══════════════════════════
@@ -608,12 +601,10 @@ local fruitDetectDisplay = InfoLbl(FruitTab, "🔴 No fruit in area", 4)
 -- ══════════════════════════
 SecLabel(FoodTab, "🍖 AUTO BUY FOOD", Color3.fromRGB(200, 130, 255), 1)
 local toggleFoodBtn = MakeBtn(FoodTab, "▶ Enable Auto Buy Food", Color3.fromRGB(180, 80, 220), 2)
-
 local foodInfo = InfoLbl(FoodTab,
     "Buy ALL food otomatis saat stock tersedia\nInstant react saat restock dari server",
     3, true)
 foodInfo.Size = UDim2.new(1, 0, 0, isMobile and 36 or 44)
-
 local foodDetailLbl = InfoLbl(FoodTab, "🔍 Mencari FoodService...", 4)
 
 -- ═══════════════════════════════════════════
@@ -708,7 +699,6 @@ end)
 -- UPDATE UI HELPER
 -- ═══════════════════════════════════════════
 local function updateUI()
-    -- Lasso
     if autoCompleteEnabled then
         statusLabel.Text = "🟢 Auto Lasso: ON"
         statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
@@ -722,7 +712,6 @@ local function updateUI()
         progressLabel.Text = "Waiting for minigame..."
         phaseLabel.Text = ""
     end
-    -- Fruit
     if autoCollectFruitEnabled then
         toggleFruitBtn.Text = "⏹ Disable Auto Collect Fruit"
         toggleFruitBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
@@ -730,7 +719,6 @@ local function updateUI()
         toggleFruitBtn.Text = "▶ Enable Auto Collect Fruit"
         toggleFruitBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
     end
-    -- Food
     if autoBuyFoodEnabled then
         toggleFoodBtn.Text = "⏹ Disable Auto Buy Food"
         toggleFoodBtn.BackgroundColor3 = Color3.fromRGB(140, 60, 200)
@@ -760,6 +748,9 @@ updateProgressRemote.OnClientEvent:Connect(function(eventType)
     end
 end)
 
+-- ═══════════════════════════════════════════
+-- MINIGAME HELPERS
+-- ═══════════════════════════════════════════
 local function getMinigameGui()
     for _, gui in pairs(playerGui:GetChildren()) do
         if gui.Name == "LassoMinigame" and gui:FindFirstChild("Holder") then
@@ -775,17 +766,60 @@ local function detectIsBoss(holder)
     if bossBars then
         local bossBar = bossBars:FindFirstChild("Boss")
         if bossBar and bossBar.Visible then return true end
+        -- Cek semua anak BossBars yang visible (selain Lucky)
+        for _, bar in pairs(bossBars:GetChildren()) do
+            if bar.Name ~= "Lucky" and bar.Visible then return true end
+        end
     end
     return false
 end
 
 -- ═══════════════════════════════════════════
--- AUTO MOUNT PET
+-- [NEW] CEK JUMLAH PLAYER DI BOSS BATTLE
+-- Hitung semua player yang punya LassoMinigame GUI aktif
 -- ═══════════════════════════════════════════
-
+local function getPlayerCountInBoss()
+    local count = 0
+    for _, p in pairs(Players:GetPlayers()) do
+        -- LocalPlayer pasti ikut kalau minigamenya ada
+        if p == player then
+            if getMinigameGui() then count = count + 1 end
+        else
+            -- Player lain: cek PlayerGui mereka
+            local pGui = p:FindFirstChild("PlayerGui")
+            if pGui then
+                local lassoGui = pGui:FindFirstChild("LassoMinigame")
+                if lassoGui then count = count + 1 end
+            end
+        end
+    end
+    return math.max(count, 1)
+end
 
 -- ═══════════════════════════════════════════
--- AUTO COMPLETE MINIGAME
+-- [NEW] CEK APAKAH PET SUDAH DI-CAPTURED
+-- Scan workspace untuk pet dengan Captured = true
+-- ═══════════════════════════════════════════
+local function checkPetCaptured()
+    local function scan(parent, depth)
+        if depth > 6 then return false end
+        for _, obj in pairs(parent:GetChildren()) do
+            if obj.Name ~= "PlayerPens" then
+                if obj:GetAttribute("Captured") == true then
+                    return true
+                end
+                if #obj:GetChildren() > 0 then
+                    if scan(obj, depth + 1) then return true end
+                end
+            end
+        end
+        return false
+    end
+    return scan(workspace, 0)
+end
+
+-- ═══════════════════════════════════════════
+-- AUTO COMPLETE MINIGAME (UPDATED WITH FIX)
 -- ═══════════════════════════════════════════
 local bossClickThread = nil
 
@@ -797,67 +831,170 @@ local function startBossClickLoop()
     stopBossThread()
     bossClickThread = task.spawn(function()
         local clickCount = 0
+        local tickCounter = 0
+
         while true do
-            if not getMinigameGui() then break end
+            -- CEK 1: Apakah minigame GUI masih ada?
+            local gui, holder = getMinigameGui()
+            if not gui then
+                -- GUI hilang = pet didapat atau dibatalkan
+                progressLabel.Text = "✅ Boss selesai!"
+                phaseLabel.Text = ""
+                break
+            end
+
+            -- CEK 2: Apakah pet sudah di-captured?
+            if checkPetCaptured() then
+                progressLabel.Text = "✅ Pet berhasil didapat!"
+                phaseLabel.Text = "✅ CAPTURED!"
+                task.wait(1)
+                break
+            end
+
             if not autoCompleteEnabled then break end
+
+            -- CEK 3: Update jumlah player tiap ~60 tick (~1 detik)
+            tickCounter = tickCounter + 1
+            if tickCounter >= 60 then
+                tickCounter = 0
+                local playerCount = getPlayerCountInBoss()
+                local playerInfo = playerCount >= 2
+                    and string.format("👥 %d players", playerCount)
+                    or "👤 Solo"
+
+                if isBossActive and not isWaiting then
+                    phaseLabel.Text = string.format("👑 Boss %s — Clicking!", playerInfo)
+                elseif isWaiting then
+                    phaseLabel.Text = string.format("⏳ Waiting... %s", playerInfo)
+                else
+                    phaseLabel.Text = string.format("👑 Boss %s", playerInfo)
+                end
+            end
+
+            -- Klik boss jika giliran aktif
             if isBossActive and not isWaiting then
                 pcall(function() updateProgressRemote:FireServer(1) end)
                 clickCount = clickCount + 1
                 progressLabel.Text = string.format("👑 Boss clicks: %d", clickCount)
             elseif isWaiting then
                 progressLabel.Text = "⏳ Waiting boss turn..."
-                task.wait(0.1)
             end
+
             task.wait()
         end
-        isBossActive = false; isWaiting = false
+
+        isBossActive = false
+        isWaiting = false
     end)
 end
 
 local function autoCompleteMinigame()
     if isProcessing then return end
     if not autoCompleteEnabled then return end
+
     local gui, holder = getMinigameGui()
     if not gui then return end
+
     isProcessing = true
     local isBoss = detectIsBoss(holder) or isBossActive
+
     if isBoss then
-        phaseLabel.Text = "👑 BOSS BATTLE"
+        -- === BOSS MODE ===
+        local playerCount = getPlayerCountInBoss()
+        local playerInfo  = playerCount >= 2
+            and string.format("👥 %d players", playerCount)
+            or "👤 Solo"
+
+        phaseLabel.Text   = string.format("👑 BOSS | %s", playerInfo)
         progressLabel.Text = "⚡ Spamming boss clicks..."
-        Notify("👑 Boss Battle!", "Spam max speed!", 3)
+        Notify("👑 Boss Battle!", string.format("%s — Spam max speed!", playerInfo), 3)
+
         if not isBossActive then isBossActive = true end
         startBossClickLoop()
-        while autoCompleteEnabled and getMinigameGui() ~= nil do task.wait(0.2) end
-        stopBossThread(); isBossActive = false; isWaiting = false; isProcessing = false
-        if not getMinigameGui() then
-            progressLabel.Text = "Waiting for next minigame..."; phaseLabel.Text = ""
+
+        -- Loop utama: tunggu sampai minigame benar-benar selesai
+        local statusTimer = 0
+        while autoCompleteEnabled do
+            local currentGui, currentHolder = getMinigameGui()
+
+            -- GUI hilang = selesai
+            if not currentGui then
+                progressLabel.Text = "Waiting for next minigame..."
+                phaseLabel.Text    = ""
+                break
+            end
+
+            -- Pet sudah di-captured = selesai
+            if checkPetCaptured() then
+                progressLabel.Text = "✅ Pet berhasil didapat!"
+                phaseLabel.Text    = "✅ DONE"
+                task.wait(1.5)
+                break
+            end
+
+            -- Update status player count tiap 1 detik
+            statusTimer = statusTimer + 0.2
+            if statusTimer >= 1 then
+                statusTimer = 0
+                local pc = getPlayerCountInBoss()
+                local pInfo = pc >= 2 and string.format("👥 %d players", pc) or "👤 Solo"
+                if isWaiting then
+                    phaseLabel.Text = string.format("⏳ Waiting... | %s", pInfo)
+                elseif isBossActive then
+                    phaseLabel.Text = string.format("👑 Clicking! | %s", pInfo)
+                else
+                    phaseLabel.Text = string.format("👑 Boss | %s", pInfo)
+                end
+            end
+
+            task.wait(0.2)
         end
+
+        stopBossThread()
+        isBossActive   = false
+        isWaiting      = false
+        isProcessing   = false
+
+        if not getMinigameGui() then
+            progressLabel.Text = "Waiting for next minigame..."
+            phaseLabel.Text    = ""
+        end
+
     else
+        -- === NORMAL MODE (non-boss) ===
         task.spawn(function()
             local currentProgress = 0
-            progressLabel.Text = "⚡ Fast locking safe zone..."; phaseLabel.Text = "⚡ LOCKING..."
+            progressLabel.Text = "⚡ Fast locking safe zone..."
+            phaseLabel.Text    = "⚡ LOCKING..."
+
             currentProgress = SAFE_ZONE_TARGET
             for _ = 1, 3 do
                 if not getMinigameGui() or not autoCompleteEnabled then isProcessing = false; return end
                 pcall(function() updateProgressRemote:FireServer(currentProgress) end)
                 task.wait(0.05)
             end
-            phaseLabel.Text = "✓ LOCKED! Completing..."
+
+            phaseLabel.Text    = "✓ LOCKED! Completing..."
             progressLabel.Text = string.format("Safe Zone: %d%% ✓", currentProgress)
+
             for _ = 1, 3 do
                 if not getMinigameGui() then break end
                 pcall(function() updateProgressRemote:FireServer(currentProgress) end)
                 task.wait(0.08)
             end
+
             task.wait(0.2)
             phaseLabel.Text = "⚡ Completing..."
+
             while currentProgress < COMPLETION_TARGET and getMinigameGui() and autoCompleteEnabled do
                 local increment = math.random(2, 8)
                 currentProgress = math.min(currentProgress + increment, COMPLETION_TARGET)
                 progressLabel.Text = string.format("⚡ Completing: %d%%", currentProgress)
                 pcall(function() updateProgressRemote:FireServer(currentProgress) end)
+
                 if currentProgress >= COMPLETION_TARGET then
-                    progressLabel.Text = "100% ✓ DONE!"; phaseLabel.Text = "✅ COMPLETED!"
+                    progressLabel.Text = "100% ✓ DONE!"
+                    phaseLabel.Text    = "✅ COMPLETED!"
                     for _ = 1, 3 do
                         if not getMinigameGui() then break end
                         pcall(function() updateProgressRemote:FireServer(100) end)
@@ -868,8 +1005,13 @@ local function autoCompleteMinigame()
                 end
                 task.wait(0.04)
             end
-            task.wait(0.5); isProcessing = false
-            if not getMinigameGui() then progressLabel.Text = "Waiting for next minigame..."; phaseLabel.Text = "" end
+
+            task.wait(0.5)
+            isProcessing = false
+            if not getMinigameGui() then
+                progressLabel.Text = "Waiting for next minigame..."
+                phaseLabel.Text    = ""
+            end
         end)
     end
 end
@@ -939,7 +1081,8 @@ local function teleportByRarity()
     teleportRarityStatus.Text = "🔍 Scanning pets..."
     teleportRarityStatus.TextColor3 = Color3.fromRGB(255, 200, 50)
 
-    local RARITY_ORDER = { Boss=8,Secret=7,Exclusive=6,Mythical=5,Legendary=4,Epic=3,Rare=2,Common=1 }
+    -- Prioritas sesuai game: Exclusive > Secret > Boss > Mythical > Legendary > Epic > Rare = Common
+    local RARITY_ORDER = { Exclusive=7, Secret=6, Boss=5, Mythical=4, Legendary=3, Epic=2, Rare=1, Common=1 }
     local bestPet, bestRarityScore, bestStr, totalFound = nil, -1, -math.huge, 0
 
     local function scan(parent)
@@ -972,8 +1115,8 @@ local function teleportByRarity()
         local tp = (bestPet:IsA("Model") and (bestPet.PrimaryPart or bestPet:FindFirstChild("HumanoidRootPart")))
                 or (bestPet:IsA("BasePart") and bestPet)
         local petRarity = getPetRarity(bestPet) or "?"
-        local petName = bestPet.Name or "Unknown"
-        local petStr = bestPet:GetAttribute("Strength") or 0
+        local petName   = bestPet.Name or "Unknown"
+        local petStr    = bestPet:GetAttribute("Strength") or 0
         if hrp and tp then
             hrp.CFrame = tp.CFrame * CFrame.new(0, 0, 5)
             teleportRarityStatus.Text = string.format("✅ %s [%s] Str:%d", petName, petRarity, petStr)
@@ -1087,31 +1230,23 @@ local function collectFruit(fruitModel, proximityPrompt)
         if not proximityPrompt.Enabled or not proximityPrompt.Parent then
             detectedFruits[fruitModel] = nil; updateDetectLabel(); return
         end
-        -- Force HoldDuration ke 0 supaya instant trigger
         local origHold = proximityPrompt.HoldDuration
         proximityPrompt.HoldDuration = 0
-
-        -- Coba fireproximityprompt (executor built-in, paling reliable)
         local fired = false
         if fireproximityprompt then
             local ok = pcall(function() fireproximityprompt(proximityPrompt) end)
             if ok then fired = true end
         end
-
-        -- Fallback: InputHoldBegin/End dengan HoldDuration = 0
         if not fired then
             proximityPrompt:InputHoldBegin()
             task.wait(0.05)
             proximityPrompt:InputHoldEnd()
         end
-
-        -- Restore HoldDuration asli
         task.delay(0.2, function()
             pcall(function() proximityPrompt.HoldDuration = origHold end)
         end)
         fruitCollectedCount = fruitCollectedCount + 1
-        local ftxt = string.format("🍎 Fruit: %d collected", fruitCollectedCount)
-        fruitStatusLabel.Text = ftxt
+        fruitStatusLabel.Text = string.format("🍎 Fruit: %d collected", fruitCollectedCount)
     end)
     task.wait(0.4); isCollecting = false
 end
@@ -1157,22 +1292,10 @@ local function findRemoteInService(serviceName, remoteName)
     return search(ReplicatedStorage)
 end
 
--- ═══════════════════════════════════════════
--- FOOD FILTER — berdasarkan Configs.Food
--- Dari decompile FoodShop:
---   - Item valid = ada di Configs.Food DAN punya .Stock field
---   - Item dengan .RollLuck = true adalah luck item (bukan food murni), tapi
---     tetap ada di FoodShop — ikut dibeli kalau ada di FoodConfig
---   - Item decoration/pet tidak ada di Configs.Food sama sekali
--- Jadi filter paling akurat = cek FoodConfig[itemName] != nil
--- ═══════════════════════════════════════════
-
--- Cache FoodConfig yang sudah di-load (load ulang kalau belum ada)
 local _foodConfigCache = nil
 local function getFoodConfig()
     if _foodConfigCache then return _foodConfigCache end
     if FoodConfig then _foodConfigCache = FoodConfig; return _foodConfigCache end
-    -- Coba load langsung
     local ok, cfg = pcall(function()
         return require(ReplicatedStorage:WaitForChild("Configs", 5):WaitForChild("Food", 5))
     end)
@@ -1183,22 +1306,11 @@ end
 local function isValidFoodItem(itemName)
     local cfg = getFoodConfig()
     if cfg then
-        -- Dari decompile: FoodConfig adalah dict { [foodName] = { Price, Stock, Image, ... } }
-        -- Item valid = ada di config DAN punya field Stock (bukan nil)
         local entry = cfg[itemName]
-        if entry == nil then
-            -- Tidak ada di FoodConfig → pasti bukan food (bisa decoration/pet item)
-            return false
-        end
-        if entry.Stock == nil then
-            -- Ada di config tapi tidak punya Stock field → item tidak bisa dibeli di shop
-            return false
-        end
+        if entry == nil then return false end
+        if entry.Stock == nil then return false end
         return true
     end
-
-    -- FoodConfig belum tersedia → fallback: izinkan semua (daripada tidak beli sama sekali)
-    -- Ini seharusnya jarang terjadi karena FoodConfig di-load di awal
     warn("[AutoFood] FoodConfig belum tersedia, semua item diizinkan sementara")
     return true
 end
@@ -1222,7 +1334,7 @@ local function doBuyAllFood(buyFoodRemote, stock)
         end
     end
     if #skipped > 0 then
-        warn("[AutoFood] Skip (bukan food/tidak ada di Configs.Food): "..table.concat(skipped, ", "))
+        warn("[AutoFood] Skip (bukan food): "..table.concat(skipped, ", "))
     end
     return totalBought, bought
 end
@@ -1248,8 +1360,42 @@ task.spawn(function()
     foodDetailLbl.Text = "⏳ Menunggu stock info..."
     foodStatusLabel.Text = "⏳ Menunggu stock..."
 
+    -- ═══ Realtime restock countdown ═══
+    -- Sama persis seperti game: pakai os.clock() + nextRestockSec
+    -- Dari decompile: NextRestock = os.clock() + p80
+    local _nextRestock   = os.clock() + 8  -- default sama seperti game
+    local _restockThread = nil
+
+    local function startRestockCountdown(seconds)
+        -- Set target waktu restock pakai os.clock() seperti aslinya
+        _nextRestock = os.clock() + math.max(seconds or 0, 0)
+        if _restockThread then task.cancel(_restockThread) end
+        _restockThread = task.spawn(function()
+            while true do
+                local remaining = _nextRestock - os.clock()
+                if remaining <= 0 then
+                    foodStatusLabel.Text = "⏳ Restock dalam 0s..."
+                    foodDetailLbl.Text   = "⏳ Restock dalam 0s..."
+                    break
+                end
+                local mins = math.floor(remaining / 60)
+                local secs = math.floor(remaining % 60)
+                local txt
+                if mins > 0 then
+                    txt = string.format("⏳ Restock dalam %dm %02ds...", mins, secs)
+                else
+                    txt = string.format("⏳ Restock dalam %ds...", secs)
+                end
+                foodStatusLabel.Text = txt
+                foodDetailLbl.Text   = txt
+                task.wait(1)
+            end
+        end)
+    end
+
     if replicateStockRemote then
         replicateStockRemote.OnClientEvent:Connect(function(stockTable, nextRestockSec, isRestock)
+            -- Dari decompile: p79=stockTable, p80=nextRestockSec, p81=isRestock
             local anyStock = false
             for foodName, qty in pairs(stockTable) do
                 _foodStock[foodName] = qty
@@ -1258,9 +1404,12 @@ task.spawn(function()
             _foodAllEmpty = not anyStock
 
             if _foodAllEmpty then
-                local restockTxt = string.format("⏳ Restock dalam %.0fs...", math.max(nextRestockSec or 0, 0))
-                foodStatusLabel.Text = restockTxt
-                foodDetailLbl.Text = restockTxt
+                -- Stock kosong → mulai countdown realtime
+                if _restockThread then task.cancel(_restockThread); _restockThread = nil end
+                startRestockCountdown(nextRestockSec)
+            else
+                -- Ada stock → stop countdown
+                if _restockThread then task.cancel(_restockThread); _restockThread = nil end
             end
 
             if autoBuyFoodEnabled and anyStock then
@@ -1279,7 +1428,6 @@ task.spawn(function()
         end)
     end
 
-    -- Fallback poll
     if not replicateStockRemote then
         foodDetailLbl.Text = "⚠️ Fallback poll mode"
         while true do
@@ -1319,7 +1467,6 @@ task.spawn(function()
         end
     end
 
-    -- Buy from cache if enabled after event
     while true do
         task.wait(0.3)
         if autoBuyFoodEnabled and not _foodAllEmpty then
@@ -1385,20 +1532,19 @@ local function animateButton(btn)
     TweenService:Create(btn, TweenInfo.new(0.08), {Size=os2}):Play()
 end
 
-toggleBtn.MouseButton1Click:Connect(function()      animateButton(toggleBtn);      toggleAutoComplete() end)
-toggleFruitBtn.MouseButton1Click:Connect(function() animateButton(toggleFruitBtn); toggleAutoCollectFruit() end)
-toggleFoodBtn.MouseButton1Click:Connect(function()  animateButton(toggleFoodBtn);  toggleAutoBuyFood() end)
+toggleBtn.MouseButton1Click:Connect(function()       animateButton(toggleBtn);       toggleAutoComplete() end)
+toggleFruitBtn.MouseButton1Click:Connect(function()  animateButton(toggleFruitBtn);  toggleAutoCollectFruit() end)
+toggleFoodBtn.MouseButton1Click:Connect(function()   animateButton(toggleFoodBtn);   toggleAutoBuyFood() end)
 findBestPetsBtn.MouseButton1Click:Connect(function() animateButton(findBestPetsBtn); findBestPets() end)
 teleportRarityBtn.MouseButton1Click:Connect(function() animateButton(teleportRarityBtn); teleportByRarity() end)
 
--- Hover effects
 local function Hover(btn, onCol, offCol)
     btn.MouseEnter:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3=onCol}):Play() end)
     btn.MouseLeave:Connect(function() TweenService:Create(btn, TweenInfo.new(0.15), {BackgroundColor3=offCol}):Play() end)
 end
-Hover(findBestPetsBtn, Color3.fromRGB(130, 170, 255), Color3.fromRGB(100, 150, 255))
-Hover(teleportRarityBtn, Color3.fromRGB(0, 210, 150), Color3.fromRGB(0, 170, 120))
-Hover(CloseBtn, Color3.fromRGB(255, 100, 100), Color3.fromRGB(200, 50, 50))
+Hover(findBestPetsBtn,  Color3.fromRGB(130, 170, 255), Color3.fromRGB(100, 150, 255))
+Hover(teleportRarityBtn, Color3.fromRGB(0, 210, 150),  Color3.fromRGB(0, 170, 120))
+Hover(CloseBtn,          Color3.fromRGB(255, 100, 100), Color3.fromRGB(200, 50, 50))
 
 -- Keybinds
 UserInputService.InputBegan:Connect(function(input, gp)
@@ -1416,9 +1562,13 @@ playerGui.ChildAdded:Connect(function(child)
         task.wait(0.3)
         local _, holder = getMinigameGui()
         local isBoss = detectIsBoss(holder)
+        -- Hitung player di boss saat awal
+        local playerCount = isBoss and getPlayerCountInBoss() or 1
+        local playerInfo  = playerCount >= 2 and string.format("👥 %d players", playerCount) or "👤 Solo"
         Notify(
             (isBoss or isBossActive) and "👑 Boss Battle!" or "⚡ Minigame!",
-            (isBoss or isBossActive) and "Spam max speed" or "Fast locking...", 2)
+            (isBoss or isBossActive) and ("Spam max speed | "..playerInfo) or "Fast locking...",
+            2)
         autoCompleteMinigame()
     end
 end)
@@ -1426,7 +1576,10 @@ end)
 playerGui.ChildRemoved:Connect(function(child)
     if child.Name == "LassoMinigame" then
         isProcessing = false; stopBossThread(); isBossActive = false; isWaiting = false
-        if autoCompleteEnabled then progressLabel.Text = "Waiting for next minigame..."; phaseLabel.Text = "" end
+        if autoCompleteEnabled then
+            progressLabel.Text = "Waiting for next minigame..."
+            phaseLabel.Text    = ""
+        end
     end
 end)
 
